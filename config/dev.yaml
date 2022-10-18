@@ -1,0 +1,6 @@
+AWSAccountID: "963662274920"
+App: "HalappAuth"
+Environment: DEVELOPMENT
+Region: eu-central-1
+SESFromEmail: furkan.ozdeslik@gmail.com
+SESReplyToEmail: furkan.ozdeslik@gmail.com
