@@ -11,6 +11,7 @@
     "cdk": "cdk"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.108",
     "@types/jest": "^27.5.2",
     "@types/node": "10.17.27",
     "@types/prettier": "2.6.0",
@@ -21,9 +22,17 @@
     "typescript": "~3.9.7"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity": "^3.190.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.190.0",
+    "@aws-sdk/client-dynamodb": "^3.192.0",
+    "@aws-sdk/lib-dynamodb": "^3.192.0",
+    "@middy/core": "^3.6.1",
     "aws-cdk-lib": "2.45.0",
+    "aws-lambda": "^1.0.7",
+    "class-transformer": "^0.5.1",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.21",
+    "tsyringe": "^4.7.0",
     "yaml": "^2.1.3"
   }
 }
