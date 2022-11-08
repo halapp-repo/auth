@@ -6,6 +6,8 @@ import { NodejsFunction, LogLevel } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as path from "path";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as iam from "aws-cdk-lib/aws-iam";
+import { BuildConfig } from "./build-config";
 
 export class HalappAuthStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -14,7 +16,7 @@ export class HalappAuthStack extends cdk.Stack {
     const buildConfig = getConfig(scope as cdk.App);
 
     const signupCodeDB = this.createSignupCodeDB();
-    const preSignupHandler = this.createPreSignupHandler();
+    const preSignupHandler = this.createPreSignupHandler(buildConfig);
     signupCodeDB.grantReadWriteData(preSignupHandler);
     // Read Attributes
     const clientReadAttributes = new cognito.ClientAttributes()
@@ -49,6 +51,17 @@ export class HalappAuthStack extends cdk.Stack {
         sesRegion: buildConfig.Region,
         replyTo: buildConfig.SESReplyToEmail,
       }),
+      userVerification: {
+        emailSubject: "HalApp hesabinizi onaylayin",
+        emailBody: "Onay kodu {####}",
+        emailStyle: cognito.VerificationEmailStyle.CODE,
+      },
+      passwordPolicy: {
+        minLength: 6,
+        requireUppercase: true,
+        requireDigits: true,
+        requireLowercase: true,
+      },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lambdaTriggers: {
@@ -73,8 +86,8 @@ export class HalappAuthStack extends cdk.Stack {
       }
     );
   }
-  createPreSignupHandler(): NodejsFunction {
-    return new NodejsFunction(this, "AuthPreSignupHandler", {
+  createPreSignupHandler(buildConfig: BuildConfig): NodejsFunction {
+    const preSignupHandler = new NodejsFunction(this, "AuthPreSignupHandler", {
       memorySize: 1024,
       runtime: lambda.Runtime.NODEJS_16_X,
       functionName: "AuthPreSignupHandler",
@@ -86,9 +99,17 @@ export class HalappAuthStack extends cdk.Stack {
         keepNames: true,
         logLevel: LogLevel.INFO,
         sourceMap: true,
-        minify: true,
+        minify: buildConfig.Environment === "PRODUCTION" ? true : false,
       },
     });
+    preSignupHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:List*"],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+    return preSignupHandler;
   }
   createSignupCodeDB(): cdk.aws_dynamodb.Table {
     return new dynamodb.Table(this, "SignUpCodeDB", {
