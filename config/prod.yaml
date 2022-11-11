@@ -4,3 +4,5 @@ Environment: PRODUCTION
 Region: eu-central-1
 SESFromEmail: no-reply@halapp.io
 SESReplyToEmail: info@halapp.io
+SESCCEmail: info@halapp.io
+S3SignUpCodeEmailTemplate: xxx

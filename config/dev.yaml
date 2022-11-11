@@ -4,3 +4,5 @@ Environment: DEVELOPMENT
 Region: eu-central-1
 SESFromEmail: furkan.ozdeslik@gmail.com
 SESReplyToEmail: furkan.ozdeslik@gmail.com
+SESCCEmail: furkan.ozdeslik@gmail.com
+S3SignUpCodeEmailTemplate: xxx

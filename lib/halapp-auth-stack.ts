@@ -1,6 +1,8 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import getConfig from "../config";
 import { NodejsFunction, LogLevel } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -8,30 +10,43 @@ import * as path from "path";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { BuildConfig } from "./build-config";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { Effect, PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
 export class HalappAuthStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const organizationCreatedQueue = this.createOrganizationCreatedQueue();
+
+    const emailTemplateBucket = this.createEmailTemplateBucket();
+
     const buildConfig = getConfig(scope as cdk.App);
 
     const signupCodeDB = this.createSignupCodeDB();
-    const preSignupHandler = this.createPreSignupHandler(buildConfig);
-    signupCodeDB.grantReadWriteData(preSignupHandler);
+
+    this.createOrganizationCreatedHandler(
+      emailTemplateBucket,
+      organizationCreatedQueue,
+      signupCodeDB,
+      buildConfig
+    );
+    const preSignupHandler = this.createPreSignupHandler(
+      signupCodeDB,
+      buildConfig
+    );
+
     // Read Attributes
     const clientReadAttributes = new cognito.ClientAttributes()
       .withStandardAttributes({
         email: true,
         emailVerified: true,
-        phoneNumber: true,
-        phoneNumberVerified: true,
       })
       .withCustomAttributes(...["isAdmin"]);
     // Write Attributes
     const clientWriteAttributes =
       new cognito.ClientAttributes().withStandardAttributes({
         email: true,
-        phoneNumber: true,
       });
     // User Pool
     const userPool = new cognito.UserPool(this, "HalAppAuthUserPool", {
@@ -39,6 +54,8 @@ export class HalappAuthStack extends cdk.Stack {
       selfSignUpEnabled: true,
       signInAliases: {
         email: true,
+        phone: false,
+        username: false,
       },
       customAttributes: {
         isAdmin: new cognito.BooleanAttribute({
@@ -51,8 +68,9 @@ export class HalappAuthStack extends cdk.Stack {
         sesRegion: buildConfig.Region,
         replyTo: buildConfig.SESReplyToEmail,
       }),
+
       userVerification: {
-        emailSubject: "HalApp hesabinizi onaylayin",
+        emailSubject: "HalApp hesabinizi onaylayin 📩",
         emailBody: "Onay kodu {####}",
         emailStyle: cognito.VerificationEmailStyle.CODE,
       },
@@ -68,25 +86,24 @@ export class HalappAuthStack extends cdk.Stack {
         preSignUp: preSignupHandler,
       },
     });
-    const userPoolClient = new cognito.UserPoolClient(
-      this,
-      "DefaultHalAppUserPoolClient",
-      {
-        userPool,
-        authFlows: {
-          custom: true,
-          userSrp: true,
-          adminUserPassword: true,
-        },
-        supportedIdentityProviders: [
-          cognito.UserPoolClientIdentityProvider.COGNITO,
-        ],
-        readAttributes: clientReadAttributes,
-        writeAttributes: clientWriteAttributes,
-      }
-    );
+    new cognito.UserPoolClient(this, "DefaultHalAppUserPoolClient", {
+      userPool,
+      authFlows: {
+        custom: true,
+        userSrp: true,
+        adminUserPassword: true,
+      },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.COGNITO,
+      ],
+      readAttributes: clientReadAttributes,
+      writeAttributes: clientWriteAttributes,
+    });
   }
-  createPreSignupHandler(buildConfig: BuildConfig): NodejsFunction {
+  createPreSignupHandler(
+    signupCodeDB: cdk.aws_dynamodb.Table,
+    buildConfig: BuildConfig
+  ): NodejsFunction {
     const preSignupHandler = new NodejsFunction(this, "AuthPreSignupHandler", {
       memorySize: 1024,
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -109,6 +126,7 @@ export class HalappAuthStack extends cdk.Stack {
         effect: iam.Effect.ALLOW,
       })
     );
+    signupCodeDB.grantReadWriteData(preSignupHandler);
     return preSignupHandler;
   }
   createSignupCodeDB(): cdk.aws_dynamodb.Table {
@@ -122,5 +140,108 @@ export class HalappAuthStack extends cdk.Stack {
       },
       pointInTimeRecovery: true,
     });
+  }
+  createOrganizationCreatedQueue(): cdk.aws_sqs.Queue {
+    const organizationCreatedDLQ = new sqs.Queue(
+      this,
+      "OrganizationCreatedDLQ",
+      {
+        queueName: "OrganizationCreatedDLQ",
+        retentionPeriod: cdk.Duration.hours(10),
+      }
+    );
+    const organizationCreatedQueue = new sqs.Queue(
+      this,
+      "OrganizationCreatedQueue",
+      {
+        queueName: "OrganizationCreatedQueue",
+        visibilityTimeout: cdk.Duration.minutes(2),
+        retentionPeriod: cdk.Duration.days(1),
+        deadLetterQueue: {
+          queue: organizationCreatedDLQ,
+          maxReceiveCount: 4,
+        },
+      }
+    );
+    organizationCreatedQueue.addToResourcePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        principals: [new ServicePrincipal("sns.amazonaws.com")],
+        actions: ["sqs:SendMessage"],
+        resources: [organizationCreatedQueue.queueArn],
+        conditions: {
+          StringEquals: {
+            "aws:SourceAccount": this.account,
+          },
+          ArnLike: {
+            // Allows all buckets to send notifications since we haven't created the bucket yet.
+            "aws:SourceArn": "arn:aws:sns:*:*:*",
+          },
+        },
+      })
+    );
+    return organizationCreatedQueue;
+  }
+  createOrganizationCreatedHandler(
+    emailTemplateBucket: cdk.aws_s3.Bucket,
+    organizationCreatedQueue: cdk.aws_sqs.Queue,
+    signupCodeDB: cdk.aws_dynamodb.Table,
+    buildConfig: BuildConfig
+  ): cdk.aws_lambda_nodejs.NodejsFunction {
+    const organizationCreatedHandler = new NodejsFunction(
+      this,
+      "SqsOrganizationCreatedHandler",
+      {
+        memorySize: 1024,
+        timeout: cdk.Duration.minutes(1),
+        functionName: "SqsOrganizationCreatedHandler",
+        runtime: lambda.Runtime.NODEJS_16_X,
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          `/../src/organization-created-handler/index.ts`
+        ),
+        bundling: {
+          target: "es2020",
+          keepNames: true,
+          logLevel: LogLevel.INFO,
+          sourceMap: true,
+          minify: true,
+        },
+        environment: {
+          S3BucketName: emailTemplateBucket.bucketName,
+          SESFromEmail: buildConfig.SESFromEmail,
+          SESCCEmail: buildConfig.SESCCEmail,
+          EmailTemplate: buildConfig.S3SignUpCodeEmailTemplate,
+        },
+      }
+    );
+    organizationCreatedHandler.addEventSource(
+      new SqsEventSource(organizationCreatedQueue, {
+        batchSize: 1,
+      })
+    );
+    organizationCreatedHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "ses:SendTemplatedEmail",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+    signupCodeDB.grantWriteData(organizationCreatedHandler);
+    emailTemplateBucket.grantRead(organizationCreatedHandler);
+    return organizationCreatedHandler;
+  }
+  createEmailTemplateBucket(): cdk.aws_s3.Bucket {
+    const emailTemplateBucket = new s3.Bucket(this, "HalEmailTemplate", {
+      bucketName: `hal-email-template-${this.account}`,
+      autoDeleteObjects: false,
+      versioned: true,
+    });
+    return emailTemplateBucket;
   }
 }

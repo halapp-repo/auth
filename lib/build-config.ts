@@ -5,4 +5,6 @@ export interface BuildConfig {
   readonly Region: string;
   readonly SESFromEmail: string;
   readonly SESReplyToEmail: string;
+  readonly SESCCEmail: string;
+  readonly S3SignUpCodeEmailTemplate: string;
 }
