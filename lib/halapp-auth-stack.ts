@@ -70,7 +70,7 @@ export class HalappAuthStack extends cdk.Stack {
       }),
 
       userVerification: {
-        emailSubject: "HalApp hesabinizi onaylayin 📩",
+        emailSubject: "HalApp hesabinizi onaylayin",
         emailBody: "Onay kodu {####}",
         emailStyle: cognito.VerificationEmailStyle.CODE,
       },
@@ -144,17 +144,17 @@ export class HalappAuthStack extends cdk.Stack {
   createOrganizationCreatedQueue(): cdk.aws_sqs.Queue {
     const organizationCreatedDLQ = new sqs.Queue(
       this,
-      "OrganizationCreatedDLQ",
+      "Auth-OrganizationCreatedDLQ",
       {
-        queueName: "OrganizationCreatedDLQ",
+        queueName: "Auth-OrganizationCreatedDLQ",
         retentionPeriod: cdk.Duration.hours(10),
       }
     );
     const organizationCreatedQueue = new sqs.Queue(
       this,
-      "OrganizationCreatedQueue",
+      "Auth-OrganizationCreatedQueue",
       {
-        queueName: "OrganizationCreatedQueue",
+        queueName: "Auth-OrganizationCreatedQueue",
         visibilityTimeout: cdk.Duration.minutes(2),
         retentionPeriod: cdk.Duration.days(1),
         deadLetterQueue: {
@@ -190,11 +190,11 @@ export class HalappAuthStack extends cdk.Stack {
   ): cdk.aws_lambda_nodejs.NodejsFunction {
     const organizationCreatedHandler = new NodejsFunction(
       this,
-      "SqsOrganizationCreatedHandler",
+      "Auth-SqsOrganizationCreatedHandler",
       {
         memorySize: 1024,
         timeout: cdk.Duration.minutes(1),
-        functionName: "SqsOrganizationCreatedHandler",
+        functionName: "Auth-SqsOrganizationCreatedHandler",
         runtime: lambda.Runtime.NODEJS_16_X,
         handler: "handler",
         entry: path.join(
@@ -209,10 +209,10 @@ export class HalappAuthStack extends cdk.Stack {
           minify: true,
         },
         environment: {
-          S3BucketName: emailTemplateBucket.bucketName,
+          S3BucketName: `hal-email-template-${this.account}`,
           SESFromEmail: buildConfig.SESFromEmail,
           SESCCEmail: buildConfig.SESCCEmail,
-          EmailTemplate: buildConfig.S3SignUpCodeEmailTemplate,
+          EmailTemplate: buildConfig.S3WelcomeToHalAppEmailTemplate,
         },
       }
     );

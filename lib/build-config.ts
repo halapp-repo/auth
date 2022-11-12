@@ -6,5 +6,5 @@ export interface BuildConfig {
   readonly SESFromEmail: string;
   readonly SESReplyToEmail: string;
   readonly SESCCEmail: string;
-  readonly S3SignUpCodeEmailTemplate: string;
+  readonly S3WelcomeToHalAppEmailTemplate: string;
 }

@@ -32,9 +32,9 @@ function getConfig(app: cdk.App): BuildConfig {
     SESFromEmail: ensureString(unparsedEnv, "SESFromEmail"),
     SESReplyToEmail: ensureString(unparsedEnv, "SESReplyToEmail"),
     SESCCEmail: ensureString(unparsedEnv, "SESCCEmail"),
-    S3SignUpCodeEmailTemplate: ensureString(
+    S3WelcomeToHalAppEmailTemplate: ensureString(
       unparsedEnv,
-      "S3SignUpCodeEmailTemplate"
+      "S3WelcomeToHalAppEmailTemplate"
     ),
   };
   return buildConfig;

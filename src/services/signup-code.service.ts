@@ -1,6 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import SignUpCodeRepository from "../repositories/signup-code.repository";
 import { UserLambdaValidationException } from "@aws-sdk/client-cognito-identity-provider";
+import { SignupCode } from "../models/signup-code";
 
 @injectable()
 export default class SignupCodeService {
@@ -26,5 +27,12 @@ export default class SignupCodeService {
       });
     }
     await this.repo.invalidateSignupCode(code);
+  }
+  async createCode(
+    code: string,
+    orgId: string,
+    orgName: string
+  ): Promise<void> {
+    await this.repo.createSignupCode(SignupCode.create(code, orgId, orgName));
   }
 }
