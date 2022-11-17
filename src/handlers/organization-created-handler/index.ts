@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { S3CreateEvent, SQSEvent, SQSRecord, SNSMessage } from "aws-lambda";
 import { v4 as uuidv4 } from "uuid";
-import { diContainer } from "../core/di-registry";
+import { diContainer } from "../../core/di-registry";
 
-import SignupCodeService from "../services/signup-code.service";
-import { SESService } from "../services/ses.service";
+import SignupCodeService from "../../services/signup-code.service";
+import { SESService } from "../../services/ses.service";
 
 export async function handler(event: SQSEvent) {
   const signupService = diContainer.resolve(SignupCodeService);

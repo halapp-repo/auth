@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as sns from "aws-cdk-lib/aws-sns";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import getConfig from "../config";
@@ -12,6 +13,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import { BuildConfig } from "./build-config";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Effect, PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
 
 export class HalappAuthStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -24,6 +26,10 @@ export class HalappAuthStack extends cdk.Stack {
     const buildConfig = getConfig(scope as cdk.App);
 
     const signupCodeDB = this.createSignupCodeDB();
+    const authApi = this.createAuthApiGateway();
+    const userCreatedSnsTopic = this.createUserCreatedSNSTopic();
+
+    this.createGetSignupCodeHandler(authApi, signupCodeDB);
 
     this.createOrganizationCreatedHandler(
       emailTemplateBucket,
@@ -31,8 +37,13 @@ export class HalappAuthStack extends cdk.Stack {
       signupCodeDB,
       buildConfig
     );
+
     const preSignupHandler = this.createPreSignupHandler(
       signupCodeDB,
+      buildConfig
+    );
+    const postConfirmationHandler = this.createPostConfirmationHandler(
+      userCreatedSnsTopic,
       buildConfig
     );
 
@@ -84,6 +95,7 @@ export class HalappAuthStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lambdaTriggers: {
         preSignUp: preSignupHandler,
+        postConfirmation: postConfirmationHandler,
       },
     });
     new cognito.UserPoolClient(this, "DefaultHalAppUserPoolClient", {
@@ -110,7 +122,10 @@ export class HalappAuthStack extends cdk.Stack {
       functionName: "AuthPreSignupHandler",
       handler: "handler",
       timeout: cdk.Duration.seconds(15),
-      entry: path.join(__dirname, `/../src/pre-signup-handler/index.ts`),
+      entry: path.join(
+        __dirname,
+        `/../src/handlers/pre-signup-handler/index.ts`
+      ),
       bundling: {
         target: "es2020",
         keepNames: true,
@@ -199,7 +214,7 @@ export class HalappAuthStack extends cdk.Stack {
         handler: "handler",
         entry: path.join(
           __dirname,
-          `/../src/organization-created-handler/index.ts`
+          `/../src/handlers/organization-created-handler/index.ts`
         ),
         bundling: {
           target: "es2020",
@@ -243,5 +258,97 @@ export class HalappAuthStack extends cdk.Stack {
       versioned: true,
     });
     return emailTemplateBucket;
+  }
+  createAuthApiGateway(): cdk.aws_apigateway.RestApi {
+    const authApi = new apigateway.RestApi(this, "HalAppAuthApi", {
+      description: "HalApp Api Gateway",
+    });
+    return authApi;
+  }
+  createGetSignupCodeHandler(
+    authApi: cdk.aws_apigateway.RestApi,
+    signupCodeDB: cdk.aws_dynamodb.Table
+  ) {
+    const signupCodeResource = authApi.root
+      .addResource("signupcode")
+      .addResource("{code}");
+    const getSignupCodeHandler = new NodejsFunction(
+      this,
+      "AuthGetSignupCodeHandler",
+      {
+        memorySize: 1024,
+        runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "AuthGetSignupCodeHandler",
+        handler: "handler",
+        timeout: cdk.Duration.seconds(15),
+        entry: path.join(
+          __dirname,
+          `/../src/handlers/auth-get-signup-code-handler/index.ts`
+        ),
+        bundling: {
+          target: "es2020",
+          keepNames: true,
+          logLevel: LogLevel.INFO,
+          sourceMap: true,
+          minify: true,
+        },
+      }
+    );
+    signupCodeResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(getSignupCodeHandler, {
+        proxy: true,
+      })
+    );
+    signupCodeDB.grantReadData(getSignupCodeHandler);
+  }
+  createPostConfirmationHandler(
+    userCreatedTopic: cdk.aws_sns.Topic,
+    buildConfig: BuildConfig
+  ): NodejsFunction {
+    const postConfirmationHandler = new NodejsFunction(
+      this,
+      "AuthPostConfirmationHandler",
+      {
+        memorySize: 1024,
+        runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "AuthPostConfirmationHandler",
+        handler: "handler",
+        timeout: cdk.Duration.seconds(15),
+        entry: path.join(
+          __dirname,
+          `/../src/handlers/post-confirmation-handler/index.ts`
+        ),
+        bundling: {
+          target: "es2020",
+          keepNames: true,
+          logLevel: LogLevel.INFO,
+          sourceMap: true,
+          minify: buildConfig.Environment === "PRODUCTION" ? true : false,
+        },
+        environment: {
+          SNSUserCreatedTopicArn: userCreatedTopic.topicArn,
+          Region: buildConfig.Region,
+        },
+      }
+    );
+    postConfirmationHandler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "ses:SendTemplatedEmail",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+    return postConfirmationHandler;
+  }
+  createUserCreatedSNSTopic(): cdk.aws_sns.Topic {
+    const userCreatedTopic = new sns.Topic(this, "UserCreatedTopic", {
+      displayName: "UserCreatedTopic",
+    });
+    return userCreatedTopic;
   }
 }

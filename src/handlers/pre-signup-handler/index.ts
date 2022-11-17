@@ -7,9 +7,10 @@ import {
   Callback,
 } from "aws-lambda";
 import { UserLambdaValidationException } from "@aws-sdk/client-cognito-identity-provider";
-import { diContainer } from "../core/di-registry";
-import CognitoUserRepository from "../repositories/cognito-user.repository";
+import { diContainer } from "../../core/di-registry";
+import CognitoUserRepository from "../../repositories/cognito-user.repository";
 import httpErrorHandler from "@middy/http-error-handler";
+import SignUpCodeRepository from "../../repositories/signup-code.repository";
 
 const lambdaHandler: PreSignUpTriggerHandler = async function (
   event: PreSignUpTriggerEvent,
@@ -17,7 +18,8 @@ const lambdaHandler: PreSignUpTriggerHandler = async function (
   callback: Callback<any>
 ) {
   console.log(JSON.stringify(event, null, 2));
-  const userRepository = diContainer.resolve(CognitoUserRepository);
+  const cognitoUserRepository = diContainer.resolve(CognitoUserRepository);
+  const signupCodeRepository = diContainer.resolve(SignUpCodeRepository);
   const signupCode = event.request.clientMetadata?.["signupCode"];
   if (!signupCode) {
     throw new UserLambdaValidationException({
@@ -26,14 +28,18 @@ const lambdaHandler: PreSignUpTriggerHandler = async function (
     });
   }
   // check uniqniess of email
-  const email = event.request.userAttributes.email;
-  if (!email) {
+  if (!event.request.userAttributes.email) {
     throw new UserLambdaValidationException({
       message: "email eksik",
       $metadata: { httpStatusCode: 400 },
     });
   }
-  const users = await userRepository.getUsersByEmail(event.userPoolId, email);
+  const email = event.request.userAttributes.email.toUpperCase();
+  event.request.userAttributes.email = email;
+  const users = await cognitoUserRepository.getUsersByEmail(
+    event.userPoolId,
+    email
+  );
   console.log(`Existed users : ${JSON.stringify(users)}`);
   if (users && users?.length > 0) {
     return callback(
@@ -44,6 +50,18 @@ const lambdaHandler: PreSignUpTriggerHandler = async function (
       event
     );
   }
+  const signupCodeObj = await signupCodeRepository.getSignupCode(signupCode);
+  if (!signupCodeObj || !signupCodeObj.isActive()) {
+    return callback(
+      new UserLambdaValidationException({
+        message: "signupCode gecerli degil",
+        $metadata: { httpStatusCode: 400 },
+      }),
+      event
+    );
+  }
+  await signupCodeRepository.invalidateSignupCode(signupCodeObj);
+
   return event;
 };
 
