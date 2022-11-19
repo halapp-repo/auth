@@ -12,10 +12,11 @@ import { SNSService } from "../../services/sns.service";
 
 const lambdaHandler: PostConfirmationTriggerHandler = async function (
   event: PostConfirmationTriggerEvent,
-  _: Context,
+  context: Context,
   callback: Callback<any>
 ) {
   console.log(JSON.stringify(event, null, 2));
+  console.log(JSON.stringify(context, null, 2));
 
   const snsService = diContainer.resolve(SNSService);
 

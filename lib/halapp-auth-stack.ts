@@ -332,17 +332,7 @@ export class HalappAuthStack extends cdk.Stack {
         },
       }
     );
-    postConfirmationHandler.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: [
-          "ses:SendEmail",
-          "ses:SendRawEmail",
-          "ses:SendTemplatedEmail",
-        ],
-        resources: ["*"],
-        effect: iam.Effect.ALLOW,
-      })
-    );
+    userCreatedTopic.grantPublish(postConfirmationHandler);
     return postConfirmationHandler;
   }
   createUserCreatedSNSTopic(): cdk.aws_sns.Topic {
