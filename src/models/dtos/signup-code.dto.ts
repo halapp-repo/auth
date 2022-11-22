@@ -1,7 +1,8 @@
 export interface SignupCodeDTO {
   Code: string;
   OrganizationID: string;
-  UserEmail: string;
+  OrganizationName: string;
   TS: string;
   Active: boolean;
+  Email?: string;
 }

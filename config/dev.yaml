@@ -4,3 +4,11 @@ Environment: DEVELOPMENT
 Region: eu-central-1
 SESFromEmail: furkan.ozdeslik@gmail.com
 SESReplyToEmail: furkan.ozdeslik@gmail.com
+SESCCEmail: furkan.ozdeslik@gmail.com
+S3WelcomeToHalAppEmailTemplate: welcome-to-halapp.ejs
+
+ShouldCreateS3EmailTemplateBucket: "false"
+S3EmailTemplateBucketName: hal-email-template-963662274920
+
+ShouldCreateDynamoSignupCodeDB: "false"
+DynamoSignupCodeDBName: SignUpCode

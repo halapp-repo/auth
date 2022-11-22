@@ -8,17 +8,31 @@ export class SignUpToSignupDTOMapper extends IMapper<
   SignupCodeDTO
 > {
   toDTO(arg: SignupCode): SignupCodeDTO {
-    throw new Error("Not Implemented");
-  }
-  toListDTO(arg: SignupCode[]): SignupCodeDTO[] {
-    throw new Error("Not Implemented");
+    return {
+      Code: arg.Code,
+      Active: arg.Active,
+      OrganizationID: arg.OrganizationID,
+      OrganizationName: arg.OrganizationName,
+      TS: arg.TS.format(),
+      ...(arg.Email
+        ? {
+            Email: arg.Email,
+          }
+        : null),
+    };
   }
   toModel(arg: SignupCodeDTO): SignupCode {
     return plainToClass(SignupCode, {
       Code: arg.Code,
       OrganizationID: arg.OrganizationID,
-      UserEmail: arg.UserEmail,
+      OrganizationName: arg.OrganizationName,
       TS: arg.TS,
+      Active: arg.Active,
+      ...(arg.Email
+        ? {
+            Email: arg.Email,
+          }
+        : null),
     });
   }
 }

@@ -31,6 +31,20 @@ function getConfig(app: cdk.App): BuildConfig {
     Region: ensureString(unparsedEnv, "Region"),
     SESFromEmail: ensureString(unparsedEnv, "SESFromEmail"),
     SESReplyToEmail: ensureString(unparsedEnv, "SESReplyToEmail"),
+    SESCCEmail: ensureString(unparsedEnv, "SESCCEmail"),
+    S3WelcomeToHalAppEmailTemplate: ensureString(
+      unparsedEnv,
+      "S3WelcomeToHalAppEmailTemplate"
+    ),
+    ShouldCreateS3EmailTemplateBucket:
+      ensureString(unparsedEnv, "ShouldCreateS3EmailTemplateBucket") === "true",
+    S3EmailTemplateBucketName: ensureString(
+      unparsedEnv,
+      "S3EmailTemplateBucketName"
+    ),
+    ShouldCreateDynamoSignupCodeDB:
+      ensureString(unparsedEnv, "ShouldCreateDynamoSignupCodeDB") === "true",
+    DynamoSignupCodeDBName: ensureString(unparsedEnv, "DynamoSignupCodeDBName"),
   };
   return buildConfig;
 }

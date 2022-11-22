@@ -2,6 +2,7 @@ import {
   QueryCommand,
   DeleteCommand,
   UpdateCommand,
+  PutCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { inject, injectable } from "tsyringe";
 import { IMapper } from "../mappers/base.mapper";
@@ -34,7 +35,6 @@ export default class SignUpCodeRepository {
     const { Items } = await this.store.dynamoClient.send(command);
     return this.convertResultToModel(Items)[0];
   }
-
   async deleteSignupCode(signupCode: SignupCode): Promise<void> {
     const command = new DeleteCommand({
       TableName: this.tableName,
@@ -44,23 +44,25 @@ export default class SignUpCodeRepository {
     });
     await this.store.dynamoClient.send(command);
   }
-  async invalidateSignupCode(signupCode: SignupCode): Promise<void> {
-    const command = new UpdateCommand({
+  async invalidateSignupCode(
+    signupCode: SignupCode,
+    email: string
+  ): Promise<void> {
+    signupCode.setInactive();
+    signupCode.Email = email;
+    const command = new PutCommand({
       TableName: this.tableName,
-      Key: {
-        Code: signupCode.Code,
-      },
-      UpdateExpression: "SET #Active = :Active",
-      ExpressionAttributeNames: {
-        "#Active": "Active",
-      },
-      ExpressionAttributeValues: {
-        ":Active": false,
-      },
+      Item: this.mapper.toDTO(signupCode),
     });
     await this.store.dynamoClient.send(command);
   }
-
+  async createSignupCode(code: SignupCode): Promise<void> {
+    const command = new PutCommand({
+      TableName: this.tableName,
+      Item: this.mapper.toDTO(code),
+    });
+    await this.store.dynamoClient.send(command);
+  }
   private convertResultToModel(items?: Record<string, any>[]): SignupCode[] {
     if (!items || items.length === 0) {
       return [];
@@ -72,8 +74,9 @@ export default class SignUpCodeRepository {
             Code: i["Code"],
             OrganizationID: i["OrganizationID"],
             TS: i["TS"],
-            UserEmail: i["UserEmail"],
+            OrganizationName: i["OrganizationName"],
             Active: i["Active"],
+            Email: i["Email"],
           }
       )
     );
