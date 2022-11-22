@@ -13,10 +13,19 @@ export class SignupCode {
   })
   TS: moment.Moment;
 
-  readonly Active: boolean;
+  Active: boolean;
   isActive(): boolean {
     return this.Active;
   }
+  setInactive(): void {
+    this.Active = false;
+  }
+
+  Email?: string;
+  setEmail(email: string) {
+    this.Email = email;
+  }
+
   static create(code: string, orgId: string, orgName: string): SignupCode {
     return plainToClass(SignupCode, {
       Code: code,

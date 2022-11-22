@@ -14,6 +14,11 @@ export class SignUpToSignupDTOMapper extends IMapper<
       OrganizationID: arg.OrganizationID,
       OrganizationName: arg.OrganizationName,
       TS: arg.TS.format(),
+      ...(arg.Email
+        ? {
+            Email: arg.Email,
+          }
+        : null),
     };
   }
   toModel(arg: SignupCodeDTO): SignupCode {
@@ -23,6 +28,11 @@ export class SignUpToSignupDTOMapper extends IMapper<
       OrganizationName: arg.OrganizationName,
       TS: arg.TS,
       Active: arg.Active,
+      ...(arg.Email
+        ? {
+            Email: arg.Email,
+          }
+        : null),
     });
   }
 }

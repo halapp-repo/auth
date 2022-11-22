@@ -4,4 +4,5 @@ export interface SignupCodeDTO {
   OrganizationName: string;
   TS: string;
   Active: boolean;
+  Email?: string;
 }

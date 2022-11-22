@@ -44,19 +44,15 @@ export default class SignUpCodeRepository {
     });
     await this.store.dynamoClient.send(command);
   }
-  async invalidateSignupCode(signupCode: SignupCode): Promise<void> {
-    const command = new UpdateCommand({
+  async invalidateSignupCode(
+    signupCode: SignupCode,
+    email: string
+  ): Promise<void> {
+    signupCode.setInactive();
+    signupCode.Email = email;
+    const command = new PutCommand({
       TableName: this.tableName,
-      Key: {
-        Code: signupCode.Code,
-      },
-      UpdateExpression: "SET #Active = :Active",
-      ExpressionAttributeNames: {
-        "#Active": "Active",
-      },
-      ExpressionAttributeValues: {
-        ":Active": false,
-      },
+      Item: this.mapper.toDTO(signupCode),
     });
     await this.store.dynamoClient.send(command);
   }
@@ -80,6 +76,7 @@ export default class SignUpCodeRepository {
             TS: i["TS"],
             OrganizationName: i["OrganizationName"],
             Active: i["Active"],
+            Email: i["Email"],
           }
       )
     );

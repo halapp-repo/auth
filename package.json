@@ -8,7 +8,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "debug:org-created": "sam  local invoke   -t ./cdk.out/HalappAuth-DEVELOPMENT.template.json Auth-SqsOrganizationCreatedHandler -e events/sqs-organization-created.event.json --profile default --region eu-central-1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.108",

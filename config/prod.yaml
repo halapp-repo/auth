@@ -6,3 +6,9 @@ SESFromEmail: no-reply@halapp.io
 SESReplyToEmail: info@halapp.io
 SESCCEmail: info@halapp.io
 S3WelcomeToHalAppEmailTemplate: welcome-to-halapp.ejs
+
+ShouldCreateS3EmailTemplateBucket: "true"
+S3EmailTemplateBucketName: hal-email-template-751021557844
+
+ShouldCreateDynamoSignupCodeDB: "true"
+DynamoSignupCodeDBName: SignUpCode

@@ -22,10 +22,12 @@ const lambdaHandler: PostConfirmationTriggerHandler = async function (
 
   const userId = event.request.userAttributes["sub"];
   const email = event.request.userAttributes["email"];
+  const organizationId = event.request.userAttributes["custom:organizationId"];
   await snsService.publishUserCreatedMessage({
     email,
     userId,
     eventType: AccountEventType.UserCreatedV1,
+    organizationId,
   });
 
   return event;

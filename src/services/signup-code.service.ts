@@ -8,7 +8,10 @@ export default class SignupCodeService {
   constructor(
     @inject("SignUpCodeRepository") private repo: SignUpCodeRepository
   ) {}
-  async checkAndInvalidateCode(signupCode: string): Promise<void> {
+  async checkAndInvalidateCode(
+    signupCode: string,
+    email: string
+  ): Promise<void> {
     const code = await this.repo.getSignupCode(signupCode);
     if (!code) {
       throw new UserLambdaValidationException({
@@ -26,13 +29,14 @@ export default class SignupCodeService {
         },
       });
     }
-    await this.repo.invalidateSignupCode(code);
+    await this.repo.invalidateSignupCode(code, email);
   }
   async createCode(
     code: string,
     orgId: string,
     orgName: string
   ): Promise<void> {
+    console.log("Signup code is creating...");
     await this.repo.createSignupCode(SignupCode.create(code, orgId, orgName));
   }
 }

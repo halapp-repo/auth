@@ -19,13 +19,13 @@ export class HalappAuthStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const organizationCreatedQueue = this.createOrganizationCreatedQueue();
-
-    const emailTemplateBucket = this.createEmailTemplateBucket();
-
     const buildConfig = getConfig(scope as cdk.App);
 
-    const signupCodeDB = this.createSignupCodeDB();
+    const organizationCreatedQueue = this.createOrganizationCreatedQueue();
+
+    const emailTemplateBucket = this.createEmailTemplateBucket(buildConfig);
+
+    const signupCodeDB = this.createSignupCodeDB(buildConfig);
     const authApi = this.createAuthApiGateway();
     const userCreatedSnsTopic = this.createUserCreatedSNSTopic();
 
@@ -53,12 +53,13 @@ export class HalappAuthStack extends cdk.Stack {
         email: true,
         emailVerified: true,
       })
-      .withCustomAttributes(...["isAdmin"]);
+      .withCustomAttributes(...["isAdmin", "organizationId"]);
     // Write Attributes
-    const clientWriteAttributes =
-      new cognito.ClientAttributes().withStandardAttributes({
+    const clientWriteAttributes = new cognito.ClientAttributes()
+      .withStandardAttributes({
         email: true,
-      });
+      })
+      .withCustomAttributes(...["organizationId"]);
     // User Pool
     const userPool = new cognito.UserPool(this, "HalAppAuthUserPool", {
       userPoolName: "HalAppUserPool",
@@ -71,6 +72,11 @@ export class HalappAuthStack extends cdk.Stack {
       customAttributes: {
         isAdmin: new cognito.BooleanAttribute({
           mutable: true,
+        }),
+        organizationId: new cognito.StringAttribute({
+          mutable: false,
+          minLen: 1,
+          maxLen: 45,
         }),
       },
       email: cognito.UserPoolEmail.withSES({
@@ -113,7 +119,7 @@ export class HalappAuthStack extends cdk.Stack {
     });
   }
   createPreSignupHandler(
-    signupCodeDB: cdk.aws_dynamodb.Table,
+    signupCodeDB: cdk.aws_dynamodb.ITable,
     buildConfig: BuildConfig
   ): NodejsFunction {
     const preSignupHandler = new NodejsFunction(this, "AuthPreSignupHandler", {
@@ -144,17 +150,27 @@ export class HalappAuthStack extends cdk.Stack {
     signupCodeDB.grantReadWriteData(preSignupHandler);
     return preSignupHandler;
   }
-  createSignupCodeDB(): cdk.aws_dynamodb.Table {
-    return new dynamodb.Table(this, "SignUpCodeDB", {
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      tableName: "SignUpCode",
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      partitionKey: {
-        name: "Code",
-        type: dynamodb.AttributeType.STRING,
-      },
-      pointInTimeRecovery: true,
-    });
+  createSignupCodeDB(buildConfig: BuildConfig): cdk.aws_dynamodb.ITable {
+    let table;
+    if (buildConfig.ShouldCreateDynamoSignupCodeDB === false) {
+      table = dynamodb.Table.fromTableName(
+        this,
+        "SignUpCodeDB",
+        buildConfig.DynamoSignupCodeDBName
+      );
+    } else {
+      table = new dynamodb.Table(this, "SignUpCodeDB", {
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        tableName: buildConfig.DynamoSignupCodeDBName,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        partitionKey: {
+          name: "Code",
+          type: dynamodb.AttributeType.STRING,
+        },
+        pointInTimeRecovery: true,
+      });
+    }
+    return table;
   }
   createOrganizationCreatedQueue(): cdk.aws_sqs.Queue {
     const organizationCreatedDLQ = new sqs.Queue(
@@ -198,9 +214,9 @@ export class HalappAuthStack extends cdk.Stack {
     return organizationCreatedQueue;
   }
   createOrganizationCreatedHandler(
-    emailTemplateBucket: cdk.aws_s3.Bucket,
+    emailTemplateBucket: cdk.aws_s3.IBucket,
     organizationCreatedQueue: cdk.aws_sqs.Queue,
-    signupCodeDB: cdk.aws_dynamodb.Table,
+    signupCodeDB: cdk.aws_dynamodb.ITable,
     buildConfig: BuildConfig
   ): cdk.aws_lambda_nodejs.NodejsFunction {
     const organizationCreatedHandler = new NodejsFunction(
@@ -251,12 +267,19 @@ export class HalappAuthStack extends cdk.Stack {
     emailTemplateBucket.grantRead(organizationCreatedHandler);
     return organizationCreatedHandler;
   }
-  createEmailTemplateBucket(): cdk.aws_s3.Bucket {
-    const emailTemplateBucket = new s3.Bucket(this, "HalEmailTemplate", {
-      bucketName: `hal-email-template-${this.account}`,
-      autoDeleteObjects: false,
-      versioned: true,
-    });
+  createEmailTemplateBucket(buildConfig: BuildConfig): cdk.aws_s3.IBucket {
+    let emailTemplateBucket;
+    if (buildConfig.ShouldCreateS3EmailTemplateBucket === false) {
+      emailTemplateBucket = s3.Bucket.fromBucketAttributes(this, "MyBucket", {
+        bucketName: buildConfig.S3EmailTemplateBucketName,
+      });
+    } else {
+      emailTemplateBucket = new s3.Bucket(this, "HalEmailTemplate", {
+        bucketName: buildConfig.S3EmailTemplateBucketName,
+        autoDeleteObjects: false,
+        versioned: true,
+      });
+    }
     return emailTemplateBucket;
   }
   createAuthApiGateway(): cdk.aws_apigateway.RestApi {
@@ -267,7 +290,7 @@ export class HalappAuthStack extends cdk.Stack {
   }
   createGetSignupCodeHandler(
     authApi: cdk.aws_apigateway.RestApi,
-    signupCodeDB: cdk.aws_dynamodb.Table
+    signupCodeDB: cdk.aws_dynamodb.ITable
   ) {
     const signupCodeResource = authApi.root
       .addResource("signupcode")

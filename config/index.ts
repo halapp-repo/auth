@@ -36,6 +36,15 @@ function getConfig(app: cdk.App): BuildConfig {
       unparsedEnv,
       "S3WelcomeToHalAppEmailTemplate"
     ),
+    ShouldCreateS3EmailTemplateBucket:
+      ensureString(unparsedEnv, "ShouldCreateS3EmailTemplateBucket") === "true",
+    S3EmailTemplateBucketName: ensureString(
+      unparsedEnv,
+      "S3EmailTemplateBucketName"
+    ),
+    ShouldCreateDynamoSignupCodeDB:
+      ensureString(unparsedEnv, "ShouldCreateDynamoSignupCodeDB") === "true",
+    DynamoSignupCodeDBName: ensureString(unparsedEnv, "DynamoSignupCodeDBName"),
   };
   return buildConfig;
 }

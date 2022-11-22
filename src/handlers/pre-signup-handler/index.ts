@@ -22,20 +22,33 @@ const lambdaHandler: PreSignUpTriggerHandler = async function (
   const signupCodeRepository = diContainer.resolve(SignUpCodeRepository);
   const signupCode = event.request.clientMetadata?.["signupCode"];
   if (!signupCode) {
-    throw new UserLambdaValidationException({
-      message: "signupCode eksik",
-      $metadata: { httpStatusCode: 400 },
-    });
+    return callback(
+      new UserLambdaValidationException({
+        message: "signupCode eksik",
+        $metadata: { httpStatusCode: 400 },
+      })
+    );
+  }
+  // check organization Id
+  const organizationId = event.request.userAttributes["custom:organizationId"];
+  if (!organizationId) {
+    return callback(
+      new UserLambdaValidationException({
+        message: "organizationId eksik",
+        $metadata: { httpStatusCode: 400 },
+      })
+    );
   }
   // check uniqniess of email
   if (!event.request.userAttributes.email) {
-    throw new UserLambdaValidationException({
-      message: "email eksik",
-      $metadata: { httpStatusCode: 400 },
-    });
+    return callback(
+      new UserLambdaValidationException({
+        message: "email eksik",
+        $metadata: { httpStatusCode: 400 },
+      })
+    );
   }
-  const email = event.request.userAttributes.email.toUpperCase();
-  event.request.userAttributes.email = email;
+  const email = event.request.userAttributes.email;
   const users = await cognitoUserRepository.getUsersByEmail(
     event.userPoolId,
     email
@@ -60,8 +73,7 @@ const lambdaHandler: PreSignUpTriggerHandler = async function (
       event
     );
   }
-  await signupCodeRepository.invalidateSignupCode(signupCodeObj);
-
+  await signupCodeRepository.invalidateSignupCode(signupCodeObj, email);
   return event;
 };
 

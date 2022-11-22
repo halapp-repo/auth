@@ -23,16 +23,19 @@ export class SNSService {
     userId,
     email,
     eventType,
+    organizationId,
   }: {
     userId: string;
     email: string;
     eventType: AccountEventType;
+    organizationId: string;
   }): Promise<void> {
     const command = new PublishCommand({
       Message: JSON.stringify({
         userId,
         email,
         type: eventType,
+        organizationId,
       }),
       Subject: "UserCreated",
       TopicArn: this.topicArn,

@@ -1,0 +1,22 @@
+{
+    "Records": [
+        {
+            "messageId": "bdb3345a-396b-486d-b84f-091818348fcb",
+            "receiptHandle": "AQEB7cy0UqucOURMcM+ermB72Zynyl48xgaxpZg54V7kBtrMa5ry0882KC0YRuBttnQ9Fhz1aInCHoK39kGJOo/dDjRXz8G7wmqJ2PDabPHLOywkeA3UIK4i9XvmHzYIOjjSz7HxLA0EgS7aZ0GAHNISUCY9wMklKHeM73WddbgCVjJmRBhePwhD6gG05B0Q+n2yHrshQTMC2b1jVS9btlzLDzuPza3asUfHlrz+LX4kiKGIZ87DYxU9s5zKm48igLfYpfSiRC8vPFsSCEpGRihLAGJkgNWgGq9vON+yShAQHWtnkWt1CzPCJ+2Ahsbdq1K3GRbCz1xsF9+1FJ5FtWw9nbgP83PrWgHNXEwxjvMnORD2jkjL0HSiWhAB+wr/+egNFvHIbt/oFIO5m2v7yKeVy7YATfGtjN9detVxkXYLWlE=",
+            "body": "{\n  \"Type\" : \"Notification\",\n  \"MessageId\" : \"280eb6c1-9332-5b3a-a5ac-ed3214e3c652\",\n  \"TopicArn\" : \"arn:aws:sns:eu-central-1:963662274920:HalappAccountStack-OrganizationCreatedTopicB0955AB1-139AVVYFLO2n\",\n  \"Subject\" : \"OrganizationCreated\",\n  \"Message\" : \"{\\\"organizationName\\\":\\\"criola-io\\\",\\\"organizationID\\\":\\\"0ba7c536-3199-4dda-a09a-76f5d03f8ccf\\\",\\\"toEmail\\\":\\\"furkan.ozdeslik@gmail.com\\\",\\\"type\\\":\\\"OrganizationCreatedV1\\\"}\",\n  \"Timestamp\" : \"2022-11-20T01:40:33.112Z\",\n  \"SignatureVersion\" : \"1\",\n  \"Signature\" : \"ReOR3Qr0V45mcaw4blJFioS7MnRFq628Gz8uedgwF16KLDSpFU9eZtzpf/7dcuc8dSrM1qqNu0C41tByjWGb2EaelvzCfu9nd26Hqcdtu9VTfWTk4qNjM2r0/vwGpw2Ls4aiLLqRDbu5POcNiEnFrcthCfukuK+I1l1sT7E1Fsujjl6ydlTZB/iBMNvmg6xjjGZrcqXVnk47L7ybZaHnKcL3+xt+MD1f5k+PPxOrE0fSIjM/mFkJl8GmfrNmX+wtvMppDG93h1oWGLd0MFK3g3qE2+3LdI2k1za2JOk7GWaloJrhchOomC2KyD6K/Gi6Dq748YdgSruXWk1Nvuy9UQ==\",\n  \"SigningCertURL\" : \"https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-56e67fcb41f6fec09b0196692625d385.pem\",\n  \"UnsubscribeURL\" : \"https://sns.eu-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-central-1:963662274920:HalappAccountStack-OrganizationCreatedTopicB0955AB1-139AVVYFLO2n:b861d883-416f-4ac0-a7c4-21d5bb4b7de7\"\n}",
+            "attributes": {
+                "ApproximateReceiveCount": "1",
+                "AWSTraceHeader": "Root=1-6379858f-06f63d0e6352fc151674376f;Parent=79e50a542f74adea;Sampled=0",
+                "SentTimestamp": "1668908433148",
+                "SenderId": "AIDAISDDSWNBEXIA6J64K",
+                "ApproximateFirstReceiveTimestamp": "1668908433155"
+            },
+            "messageAttributes": {},
+            "md5OfBody": "cc682975836b79762a504f5aacd304d3",
+            "eventSource": "aws:sqs",
+            "eventSourceARN": "arn:aws:sqs:eu-central-1:963662274920:Auth-OrganizationCreatedQueue",
+            "awsRegion": "eu-central-1"
+        }
+    ]
+}
+
