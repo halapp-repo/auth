@@ -11,13 +11,13 @@ export class SNSService {
     @inject("SNSStore")
     private snsStore: SNSStore
   ) {
-    const { SNSUserCreatedTopicArn } = process.env;
-    if (!SNSUserCreatedTopicArn) {
+    const { SNSTopicArn } = process.env;
+    if (!SNSTopicArn) {
       throw new createHttpError.InternalServerError(
-        "SNSUserCreatedTopicArn must come from env"
+        "SNSTopicArn must come from env"
       );
     }
-    this.topicArn = SNSUserCreatedTopicArn;
+    this.topicArn = SNSTopicArn;
   }
   async publishUserCreatedMessage({
     userId,
@@ -38,6 +38,27 @@ export class SNSService {
         organizationId,
       }),
       Subject: "UserCreated",
+      TopicArn: this.topicArn,
+    });
+    const data = await this.snsStore.snsClient.send(command);
+    console.log("Message sent", data);
+  }
+  async publicUserJoinedOrganizationMessage({
+    userId,
+    eventType,
+    organizationId,
+  }: {
+    userId: string;
+    eventType: AccountEventType;
+    organizationId: string;
+  }): Promise<void> {
+    const command = new PublishCommand({
+      Message: JSON.stringify({
+        userId,
+        type: eventType,
+        organizationId,
+      }),
+      Subject: "UserJoinedOrganization",
       TopicArn: this.topicArn,
     });
     const data = await this.snsStore.snsClient.send(command);

@@ -45,6 +45,15 @@ function getConfig(app: cdk.App): BuildConfig {
     ShouldCreateDynamoSignupCodeDB:
       ensureString(unparsedEnv, "ShouldCreateDynamoSignupCodeDB") === "true",
     DynamoSignupCodeDBName: ensureString(unparsedEnv, "DynamoSignupCodeDBName"),
+    SNSUserCreatedTopic: ensureString(unparsedEnv, "SNSUserCreatedTopic"),
+    SNSUserJoinedOrganizationTopic: ensureString(
+      unparsedEnv,
+      "SNSUserJoinedOrganizationTopic"
+    ),
+    SQSOrganizationCreatedQueue: ensureString(
+      unparsedEnv,
+      "SQSOrganizationCreatedQueue"
+    ),
   };
   return buildConfig;
 }

@@ -13,4 +13,9 @@ export interface BuildConfig {
 
   readonly ShouldCreateDynamoSignupCodeDB: boolean;
   readonly DynamoSignupCodeDBName: string;
+  // SNS
+  readonly SNSUserCreatedTopic: string;
+  readonly SNSUserJoinedOrganizationTopic: string;
+  // SQS
+  readonly SQSOrganizationCreatedQueue: string;
 }

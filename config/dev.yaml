@@ -12,3 +12,8 @@ S3EmailTemplateBucketName: hal-email-template-963662274920
 
 ShouldCreateDynamoSignupCodeDB: "false"
 DynamoSignupCodeDBName: SignUpCode
+
+SNSUserCreatedTopic: "AUTH_UserCreatedTopic"
+SNSUserJoinedOrganizationTopic: "AUTH_UserJoinedOrganizationTopic"
+
+SQSOrganizationCreatedQueue: "AUTH_OrganizationCreatedQueue"

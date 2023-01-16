@@ -79,7 +79,7 @@ export class SESService {
           },
         },
         Subject: {
-          Data: "HalApp'a Hoşgeldiniz",
+          Data: "HalApp'e Hoşgeldiniz",
         },
       },
       Source: this.fromAddress,

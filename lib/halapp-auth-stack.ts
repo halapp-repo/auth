@@ -21,13 +21,16 @@ export class HalappAuthStack extends cdk.Stack {
 
     const buildConfig = getConfig(scope as cdk.App);
 
-    const organizationCreatedQueue = this.createOrganizationCreatedQueue();
+    const organizationCreatedQueue =
+      this.createOrganizationCreatedQueue(buildConfig);
 
     const emailTemplateBucket = this.createEmailTemplateBucket(buildConfig);
 
     const signupCodeDB = this.createSignupCodeDB(buildConfig);
     const authApi = this.createAuthApiGateway();
-    const userCreatedSnsTopic = this.createUserCreatedSNSTopic();
+    const userCreatedSnsTopic = this.createUserCreatedSNSTopic(buildConfig);
+    const userJoinedOrganizationSnsTopic =
+      this.createJoinedOrganizationSNSTopic(buildConfig);
 
     this.createGetSignupCodeHandler(authApi, signupCodeDB);
 
@@ -44,6 +47,11 @@ export class HalappAuthStack extends cdk.Stack {
     );
     const postConfirmationHandler = this.createPostConfirmationHandler(
       userCreatedSnsTopic,
+      buildConfig
+    );
+    const postAuthenticationHandler = this.createPostAuthenticationHandler(
+      userJoinedOrganizationSnsTopic,
+      signupCodeDB,
       buildConfig
     );
 
@@ -102,6 +110,7 @@ export class HalappAuthStack extends cdk.Stack {
       lambdaTriggers: {
         preSignUp: preSignupHandler,
         postConfirmation: postConfirmationHandler,
+        postAuthentication: postAuthenticationHandler,
       },
     });
     new cognito.UserPoolClient(this, "DefaultHalAppUserPoolClient", {
@@ -172,12 +181,12 @@ export class HalappAuthStack extends cdk.Stack {
     }
     return table;
   }
-  createOrganizationCreatedQueue(): cdk.aws_sqs.Queue {
+  createOrganizationCreatedQueue(buildConfig: BuildConfig): cdk.aws_sqs.Queue {
     const organizationCreatedDLQ = new sqs.Queue(
       this,
       "Auth-OrganizationCreatedDLQ",
       {
-        queueName: "Auth-OrganizationCreatedDLQ",
+        queueName: `${buildConfig.SQSOrganizationCreatedQueue}DLQ`,
         retentionPeriod: cdk.Duration.hours(10),
       }
     );
@@ -185,7 +194,7 @@ export class HalappAuthStack extends cdk.Stack {
       this,
       "Auth-OrganizationCreatedQueue",
       {
-        queueName: "Auth-OrganizationCreatedQueue",
+        queueName: `${buildConfig.SQSOrganizationCreatedQueue}`,
         visibilityTimeout: cdk.Duration.minutes(2),
         retentionPeriod: cdk.Duration.days(1),
         deadLetterQueue: {
@@ -350,7 +359,7 @@ export class HalappAuthStack extends cdk.Stack {
           minify: buildConfig.Environment === "PRODUCTION" ? true : false,
         },
         environment: {
-          SNSUserCreatedTopicArn: userCreatedTopic.topicArn,
+          SNSTopicArn: userCreatedTopic.topicArn,
           Region: buildConfig.Region,
         },
       }
@@ -358,10 +367,59 @@ export class HalappAuthStack extends cdk.Stack {
     userCreatedTopic.grantPublish(postConfirmationHandler);
     return postConfirmationHandler;
   }
-  createUserCreatedSNSTopic(): cdk.aws_sns.Topic {
+  createPostAuthenticationHandler(
+    userJoinedOrganizationTopic: cdk.aws_sns.Topic,
+    signupCodeDB: cdk.aws_dynamodb.ITable,
+    buildConfig: BuildConfig
+  ): NodejsFunction {
+    const postAuthenticationHandler = new NodejsFunction(
+      this,
+      "AuthPostAuthenticationHandler",
+      {
+        memorySize: 1024,
+        runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "AuthPostAuthenticationHandler",
+        handler: "handler",
+        timeout: cdk.Duration.seconds(15),
+        entry: path.join(
+          __dirname,
+          `/../src/handlers/post-authentication-handler/index.ts`
+        ),
+        bundling: {
+          target: "es2020",
+          keepNames: true,
+          logLevel: LogLevel.INFO,
+          sourceMap: true,
+          minify: buildConfig.Environment === "PRODUCTION" ? true : false,
+        },
+        environment: {
+          SNSTopicArn: userJoinedOrganizationTopic.topicArn,
+          Region: buildConfig.Region,
+        },
+      }
+    );
+    userJoinedOrganizationTopic.grantPublish(postAuthenticationHandler);
+    signupCodeDB.grantReadWriteData(postAuthenticationHandler);
+    return postAuthenticationHandler;
+  }
+  createUserCreatedSNSTopic(buildConfig: BuildConfig): cdk.aws_sns.Topic {
     const userCreatedTopic = new sns.Topic(this, "UserCreatedTopic", {
       displayName: "UserCreatedTopic",
+      topicName: buildConfig.SNSUserCreatedTopic,
     });
     return userCreatedTopic;
+  }
+  createJoinedOrganizationSNSTopic(
+    buildConfig: BuildConfig
+  ): cdk.aws_sns.Topic {
+    const userJoinedOrganizationTopic = new sns.Topic(
+      this,
+      "UserJoinedOrganizationTopic",
+      {
+        displayName: "UserJoinedOrganizationTopic",
+        topicName: buildConfig.SNSUserJoinedOrganizationTopic,
+      }
+    );
+    return userJoinedOrganizationTopic;
   }
 }
