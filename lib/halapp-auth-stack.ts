@@ -13,7 +13,10 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import { BuildConfig } from "./build-config";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Effect, PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
+import * as apiGatewayAuthorizers from "@aws-cdk/aws-apigatewayv2-authorizers-alpha";
+import * as apiGatewayIntegrations from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
+import { HttpMethod } from "@aws-cdk/aws-apigatewayv2-alpha";
 
 export class HalappAuthStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -27,7 +30,7 @@ export class HalappAuthStack extends cdk.Stack {
     const emailTemplateBucket = this.createEmailTemplateBucket(buildConfig);
 
     const signupCodeDB = this.createSignupCodeDB(buildConfig);
-    const authApi = this.createAuthApiGateway();
+    const authApi = this.createAuthApiGateway(buildConfig);
     const userCreatedSnsTopic = this.createUserCreatedSNSTopic(buildConfig);
     const userJoinedOrganizationSnsTopic =
       this.createJoinedOrganizationSNSTopic(buildConfig);
@@ -127,6 +130,7 @@ export class HalappAuthStack extends cdk.Stack {
       writeAttributes: clientWriteAttributes,
     });
   }
+
   createPreSignupHandler(
     signupCodeDB: cdk.aws_dynamodb.ITable,
     buildConfig: BuildConfig
@@ -291,25 +295,44 @@ export class HalappAuthStack extends cdk.Stack {
     }
     return emailTemplateBucket;
   }
-  createAuthApiGateway(): cdk.aws_apigateway.RestApi {
-    const authApi = new apigateway.RestApi(this, "HalAppAuthApi", {
-      description: "HalApp Api Gateway",
+  createAuthApiGateway(buildConfig: BuildConfig): apiGateway.HttpApi {
+    const authApi = new apiGateway.HttpApi(this, "HalAppAuthApiV2", {
+      description: "HalApp Auth Api Gateway",
+      apiName: "HalAppAuthApiV2",
+      corsPreflight: {
+        allowHeaders: [
+          "Content-Type",
+          "X-Amz-Date",
+          "Authorization",
+          "X-Api-Key",
+        ],
+        allowMethods: [
+          apiGateway.CorsHttpMethod.GET,
+          apiGateway.CorsHttpMethod.HEAD,
+          apiGateway.CorsHttpMethod.OPTIONS,
+          apiGateway.CorsHttpMethod.POST,
+          apiGateway.CorsHttpMethod.PUT,
+          apiGateway.CorsHttpMethod.DELETE,
+          apiGateway.CorsHttpMethod.PATCH,
+        ],
+        allowOrigins:
+          buildConfig.Environment === "PRODUCTION"
+            ? ["https://halapp.io", "https://www.halapp.io"]
+            : ["*"],
+      },
     });
     return authApi;
   }
   createGetSignupCodeHandler(
-    authApi: cdk.aws_apigateway.RestApi,
+    authApi: apiGateway.HttpApi,
     signupCodeDB: cdk.aws_dynamodb.ITable
   ) {
-    const signupCodeResource = authApi.root
-      .addResource("signupcode")
-      .addResource("{code}");
     const getSignupCodeHandler = new NodejsFunction(
       this,
       "AuthGetSignupCodeHandler",
       {
         memorySize: 1024,
-        runtime: lambda.Runtime.NODEJS_16_X,
+        runtime: lambda.Runtime.NODEJS_18_X,
         functionName: "AuthGetSignupCodeHandler",
         handler: "handler",
         timeout: cdk.Duration.seconds(15),
@@ -326,12 +349,14 @@ export class HalappAuthStack extends cdk.Stack {
         },
       }
     );
-    signupCodeResource.addMethod(
-      "GET",
-      new apigateway.LambdaIntegration(getSignupCodeHandler, {
-        proxy: true,
-      })
-    );
+    authApi.addRoutes({
+      methods: [HttpMethod.GET],
+      integration: new apiGatewayIntegrations.HttpLambdaIntegration(
+        "getAuthSignupCodeIntegration",
+        getSignupCodeHandler
+      ),
+      path: "/signupcode/{code}",
+    });
     signupCodeDB.grantReadData(getSignupCodeHandler);
   }
   createPostConfirmationHandler(
